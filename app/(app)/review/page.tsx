@@ -25,7 +25,6 @@ interface TMDbResult {
   release_date?: string;
   first_air_date?: string;
   vote_average: number;
-  media_type?: string;
 }
 
 export default function ReviewPage() {
@@ -40,9 +39,7 @@ export default function ReviewPage() {
   const [dismissed, setDismissed] = useState<Record<string, boolean>>({});
   const [filter, setFilter] = useState<"all" | "needs_review" | "unmatched">("all");
 
-  useEffect(() => {
-    fetchItems();
-  }, []);
+  useEffect(() => { fetchItems(); }, []);
 
   async function fetchItems() {
     setLoading(true);
@@ -122,7 +119,7 @@ export default function ReviewPage() {
         ].map((f) => (
           <button
             key={f.value}
-            onClick={() => setFilter(f.value as any)}
+            onClick={() => setFilter(f.value as "all" | "needs_review" | "unmatched")}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
               filter === f.value
                 ? "bg-accent/15 text-accent border-accent/30"
@@ -157,45 +154,3 @@ export default function ReviewPage() {
             <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3 min-w-0">
                 <div className={`flex-shrink-0 p-1.5 rounded-lg ${item.type === "movie" ? "bg-blue-500/10" : "bg-purple-500/10"}`}>
-                  {item.type === "movie"
-                    ? <Film className="w-4 h-4 text-blue-400" />
-                    : <Tv2 className="w-4 h-4 text-purple-400" />
-                  }
-                </div>
-                <div className="min-w-0">
-                  <p className="text-white font-medium text-sm truncate">{item.title}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    {item.year && <span className="text-xs text-muted">{item.year}</span>}
-                    {item.season && <span className="text-xs text-muted">S{item.season}E{item.episode}</span>}
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      item.status === "needs_review"
-                        ? "bg-yellow-500/10 text-yellow-400"
-                        : "bg-red-500/10 text-red-400"
-                    }`}>
-                      {item.status === "needs_review" ? `${item.confidence}% match` : "unmatched"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <button onClick={() => dismissItem(item.id)} className="p-2 text-muted hover:text-error transition-colors">
-                  <X className="w-4 h-4" />
-                </button>
-                <button onClick={() => setExpanded((p) => ({ ...p, [item.id]: !p[item.id] }))} className="p-2 text-muted hover:text-white transition-colors">
-                  {expanded[item.id] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            {expanded[item.id] && (
-              <div className="border-t border-white/5 p-4 space-y-4">
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                    <input
-                      type="text"
-                      value={searchQuery[item.id] ?? item.title}
-                      onChange={(e) => setSearchQuery((p) => ({ ...p, [item.id]: e.target.value }))}
-                      onKeyDown={(e) => e.key === "Enter" && searchTMDb(item.id, searchQuery[item.id] ?? item.title, item.type)}
-                      placeholder="Search TMDb..."
-                      className="w-full bg-card border border-white/10
