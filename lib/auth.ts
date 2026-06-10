@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
-import crypto from "crypto";
+import { randomUUID } from "crypto";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -26,7 +26,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const { email } = parsed.data;
 
-        // Lazy import db to avoid build-time initialization
         const { db } = await import("@/db");
         const { users, settings } = await import("@/db/schema");
         const { eq } = await import("drizzle-orm");
@@ -38,18 +37,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           .limit(1);
 
         if (!user) {
-          // Auto-create first user (single-user system)
           const existingUsers = await db.select().from(users).limit(1);
           if (existingUsers.length > 0) return null;
 
-          const id = crypto.randomUUID();
+          const id = randomUUID();
           const [newUser] = await db
             .insert(users)
             .values({ id, email, name: email.split("@")[0] })
             .returning();
 
           await db.insert(settings).values({
-            id: crypto.randomUUID(),
+            id: randomUUID(),
             userId: newUser.id,
           });
 
