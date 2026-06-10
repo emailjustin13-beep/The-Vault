@@ -6,6 +6,7 @@ import { eq, and } from "drizzle-orm";
 import { createPutioService } from "@/services/putio";
 import { createTMDbService } from "@/services/tmdb";
 import { parseFilename, detectMediaType } from "@/services/parser";
+import { NextRequest } from "next/server";
 
 function generateId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -22,9 +23,13 @@ function cleanTitle(title: string): string {
 
 export const maxDuration = 60;
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const body = await req.json().catch(() => ({}));
+  const offset = body.offset || 0;
+  const BATCH_SIZE = 50;
 
   const [userSettings] = await db.select().from(settings).where(eq(settings.userId, session.user.id)).limit(1);
   if (!userSettings?.putioAccessToken) return NextResponse.json({ error: "Put.io not configured" }, { status: 400 });
@@ -36,13 +41,16 @@ export async function POST() {
     const putio = createPutioService(userSettings.putioAccessToken);
     const tmdb = userSettings.tmdbApiKey ? createTMDbService(userSettings.tmdbApiKey) : createTMDbService();
 
-    const videoFiles = await putio.getAllVideoFiles();
+    const allVideoFiles = await putio.getAllVideoFiles();
+    const totalFiles = allVideoFiles.length;
+    const batch = allVideoFiles.slice(offset, offset + BATCH_SIZE);
+    const hasMore = offset + BATCH_SIZE < totalFiles;
 
-    // Group TV episodes by show title
-    const showMap = new Map<string, typeof videoFiles>();
+    // Group TV episodes by show title within this batch
+    const showMap = new Map<string, typeof batch>();
     const movieFiles = [];
 
-    for (const file of videoFiles) {
+    for (const file of batch) {
       const parsed = parseFilename(file.name);
       const mediaType = detectMediaType(file.name, parsed);
 
@@ -58,7 +66,7 @@ export async function POST() {
     let matched = 0;
     let errors = 0;
 
-    // Process movies normally
+    // Process movies
     for (const file of movieFiles) {
       try {
         const existing = await db.select().from(mediaFiles).where(eq(mediaFiles.putioFileId, String(file.id))).limit(1);
@@ -120,7 +128,7 @@ export async function POST() {
       }
     }
 
-    // Process TV shows — one media_item per show, episodes as media_files
+    // Process TV shows
     for (const [, episodes] of showMap) {
       try {
         const firstFile = episodes[0];
@@ -128,12 +136,9 @@ export async function POST() {
         const mediaType = detectMediaType(firstFile.name, parsed);
         const searchTitle = cleanTitle(parsed.title);
 
-        // Check if show already exists
         const existing = await db.select().from(mediaItems)
-          .where(and(
-            eq(mediaItems.title, parsed.title),
-            eq(mediaItems.type, mediaType)
-          )).limit(1);
+          .where(and(eq(mediaItems.title, parsed.title), eq(mediaItems.type, mediaType)))
+          .limit(1);
 
         let mediaItemId: string;
 
@@ -178,7 +183,6 @@ export async function POST() {
           });
         }
 
-        // Add all episodes as media_files under this show
         for (const file of episodes) {
           const epExisting = await db.select().from(mediaFiles).where(eq(mediaFiles.putioFileId, String(file.id))).limit(1);
           if (epExisting.length > 0) continue;
@@ -205,14 +209,22 @@ export async function POST() {
 
     await db.update(scanJobs).set({
       status: "completed",
-      totalFiles: videoFiles.length,
-      processedFiles: videoFiles.length,
+      totalFiles,
+      processedFiles: offset + batch.length,
       matchedFiles: matched,
       errorFiles: errors,
       completedAt: new Date(),
     }).where(eq(scanJobs.id, jobId));
 
-    return NextResponse.json({ jobId, matched, total: videoFiles.length });
+    return NextResponse.json({
+      jobId,
+      matched,
+      processed: offset + batch.length,
+      total: totalFiles,
+      hasMore,
+      nextOffset: offset + BATCH_SIZE,
+    });
+
   } catch (error) {
     await db.update(scanJobs).set({
       status: "failed",
