@@ -64,8 +64,7 @@ export async function POST() {
         }
 
         const mediaItemId = generateId();
-        await db.insert(mediaItems).values({ id: mediaItemId, putioFileId: String(file.id), type: mediaType, title: parsed.title, year: parsed.year, season: parsed.season, episode: parsed.episode, tmdbId, tmdbData, status, confidence, lastScannedAt: new Date() });
-        await db.insert(mediaFiles).values({ id: generateId(), mediaItemId, putioFileId: String(file.id), filename: file.name, size: file.size, resolution: parsed.resolution, codec: parsed.codec, source: parsed.source, hasSubtitles: false });
+await db.insert(mediaItems).values({ id: mediaItemId, putioFileId: String(file.id), type: mediaType, title: parsed.title, year: parsed.year, season: parsed.season, episode: parsed.episode, tmdbId, tmdbData, status: status as "pending" | "matched" | "unmatched" | "needs_review", confidence, lastScannedAt: new Date() });        await db.insert(mediaFiles).values({ id: generateId(), mediaItemId, putioFileId: String(file.id), filename: file.name, size: file.size, resolution: parsed.resolution, codec: parsed.codec, source: parsed.source, hasSubtitles: false });
         matched++;
       } catch {
         errors++;
