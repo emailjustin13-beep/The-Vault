@@ -9,10 +9,7 @@ export class PutioService {
     this.accessToken = accessToken;
   }
 
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${PUTIO_API_BASE}${endpoint}`;
     const response = await fetch(url, {
       ...options,
@@ -22,27 +19,21 @@ export class PutioService {
         ...options.headers,
       },
     });
-
     if (!response.ok) {
       const error = await response.text();
       throw new Error(`Put.io API error ${response.status}: ${error}`);
     }
-
     return response.json() as Promise<T>;
   }
 
-  async getFiles(
-    parentId: number = 0,
-    page: number = 1,
-    perPage: number = 100
-  ): Promise<PutioFilesResponse> {
+  async getFiles(parentId: number = 0, page: number = 1, perPage: number = 100): Promise<PutioFilesResponse> {
     return this.request<PutioFilesResponse>(
       `/files/list?parent_id=${parentId}&page=${page}&per_page=${perPage}&sort_by=NAME_ASC`
     );
   }
 
-  async getAllVideoFiles(parentId: number = 0): Promise<PutioFile[]> {
-    const videoFiles: PutioFile[] = [];
+  async getAllVideoFiles(parentId: number = 0, parentName: string = ""): Promise<(PutioFile & { folderName: string })[]> {
+    const videoFiles: (PutioFile & { folderName: string })[] = [];
     let page = 1;
     let hasMore = true;
 
@@ -52,9 +43,9 @@ export class PutioService {
 
       for (const file of files) {
         if (file.file_type === "VIDEO") {
-          videoFiles.push(file);
+          videoFiles.push({ ...file, folderName: parentName });
         } else if (file.file_type === "FOLDER") {
-          const subFiles = await this.getAllVideoFiles(file.id);
+          const subFiles = await this.getAllVideoFiles(file.id, file.name);
           videoFiles.push(...subFiles);
         }
       }
@@ -67,9 +58,7 @@ export class PutioService {
   }
 
   async getFile(fileId: number): Promise<PutioFile> {
-    const response = await this.request<{ file: PutioFile }>(
-      `/files/${fileId}`
-    );
+    const response = await this.request<{ file: PutioFile }>(`/files/${fileId}`);
     return response.file;
   }
 
@@ -77,23 +66,11 @@ export class PutioService {
     return `${PUTIO_API_BASE}/files/${fileId}/stream?oauth_token=${this.accessToken}`;
   }
 
-  async getSubtitles(fileId: number): Promise<
-    Array<{
-      key: string;
-      language: string;
-      name: string;
-      source: string;
-    }>
-  > {
+  async getSubtitles(fileId: number): Promise<Array<{ key: string; language: string; name: string; source: string }>> {
     try {
-      const response = await this.request<{
-        subtitles: Array<{
-          key: string;
-          language: string;
-          name: string;
-          source: string;
-        }>;
-      }>(`/files/${fileId}/subtitles`);
+      const response = await this.request<{ subtitles: Array<{ key: string; language: string; name: string; source: string }> }>(
+        `/files/${fileId}/subtitles`
+      );
       return response.subtitles || [];
     } catch {
       return [];
@@ -113,22 +90,10 @@ export class PutioService {
     }
   }
 
-  async getAccountInfo(): Promise<{
-    username: string;
-    mail: string;
-    disk: { avail: number; used: number; size: number };
-  }> {
-    const response = await this.request<{
-      info: {
-        username: string;
-        mail: string;
-        disk: { avail: number; used: number; size: number };
-      };
-    }>("/account/info");
+  async getAccountInfo(): Promise<{ username: string; mail: string; disk: { avail: number; used: number; size: number } }> {
+    const response = await this.request<{ info: { username: string; mail: string; disk: { avail: number; used: number; size: number } } }>("/account/info");
     return response.info;
   }
 }
 
-export function createPutioService(accessToken: string): PutioService {
-  return new PutioService(accessToken);
-}
+export function createPutioService(accessToken:
