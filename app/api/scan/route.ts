@@ -11,6 +11,14 @@ function generateId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+function cleanTitle(title: string): string {
+  return title
+    .replace(/\s*-\s*/g, " ")
+    .replace(/[()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export const maxDuration = 60;
 
 export async function POST() {
@@ -38,6 +46,7 @@ export async function POST() {
 
         const parsed = parseFilename(file.name);
         const mediaType = detectMediaType(file.name, parsed);
+        const searchTitle = cleanTitle(parsed.title);
 
         let tmdbId = null;
         let tmdbData = null;
@@ -46,17 +55,17 @@ export async function POST() {
 
         if (tmdb) {
           const results = mediaType === "movie"
-            ? await tmdb.searchMovie(parsed.title, parsed.year ?? undefined)
-            : await tmdb.searchTV(parsed.title, parsed.year ?? undefined);
+            ? await tmdb.searchMovie(searchTitle, parsed.year ?? undefined)
+            : await tmdb.searchTV(searchTitle, parsed.year ?? undefined);
 
           if (results.length > 0) {
-            confidence = tmdb.calculateConfidence({ title: parsed.title, year: parsed.year }, results[0]);
-            if (confidence >= 90) {
+            confidence = tmdb.calculateConfidence({ title: searchTitle, year: parsed.year }, results[0]);
+            if (confidence >= 70) {
               tmdbId = results[0].id;
               tmdbData = mediaType === "movie" ? await tmdb.getMovieDetails(results[0].id) : await tmdb.getTVDetails(results[0].id);
               status = "matched";
             } else {
-              status = confidence >= 50 ? "needs_review" : "unmatched";
+              status = confidence >= 40 ? "needs_review" : "unmatched";
             }
           } else {
             status = "unmatched";
@@ -64,7 +73,8 @@ export async function POST() {
         }
 
         const mediaItemId = generateId();
-await db.insert(mediaItems).values({ id: mediaItemId, putioFileId: String(file.id), type: mediaType, title: parsed.title, year: parsed.year, season: parsed.season, episode: parsed.episode, tmdbId, tmdbData, status: status as "pending" | "matched" | "unmatched" | "needs_review", confidence, lastScannedAt: new Date() });        await db.insert(mediaFiles).values({ id: generateId(), mediaItemId, putioFileId: String(file.id), filename: file.name, size: file.size, resolution: parsed.resolution, codec: parsed.codec, source: parsed.source, hasSubtitles: false });
+        await db.insert(mediaItems).values({ id: mediaItemId, putioFileId: String(file.id), type: mediaType, title: parsed.title, year: parsed.year, season: parsed.season, episode: parsed.episode, tmdbId, tmdbData, status: status as "pending" | "matched" | "unmatched" | "needs_review", confidence, lastScannedAt: new Date() });
+        await db.insert(mediaFiles).values({ id: generateId(), mediaItemId, putioFileId: String(file.id), filename: file.name, size: file.size, resolution: parsed.resolution, codec: parsed.codec, source: parsed.source, hasSubtitles: false });
         matched++;
       } catch {
         errors++;
