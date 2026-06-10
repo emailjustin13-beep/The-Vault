@@ -2,10 +2,7 @@
 
 import { useState } from "react";
 import { Settings as SettingsType } from "@/db/schema";
-import {
-  CheckCircle2, XCircle, RefreshCw, Database,
-  Key, Zap, ExternalLink,
-} from "lucide-react";
+import { CheckCircle2, XCircle, RefreshCw, Database, Key, Zap, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut } from "next-auth/react";
 
@@ -52,11 +49,7 @@ export function SettingsClient({ initialSettings, userId }: Props) {
       const res = await fetch(`/api/${service === "putio" ? "putio" : "tmdb"}/test`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          service === "putio"
-            ? { accessToken: putioToken }
-            : { apiKey: tmdbKey }
-        ),
+        body: JSON.stringify(service === "putio" ? { accessToken: putioToken } : { apiKey: tmdbKey }),
       });
       setter(res.ok ? "success" : "error");
     } catch {
@@ -68,18 +61,33 @@ export function SettingsClient({ initialSettings, userId }: Props) {
   async function startScan() {
     setScanStatus("loading");
     try {
-      const res = await fetch("/api/scan", { method: "POST" });
-      const data = await res.json();
-      if (res.ok) {
-        setScanJobId(data.jobId);
-        setScanStatus("success");
-      } else {
-        setScanStatus("error");
+      let offset = 0;
+      let hasMore = true;
+      let totalMatched = 0;
+
+      while (hasMore) {
+        const res = await fetch("/api/scan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ offset }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setScanStatus("error");
+          return;
+        }
+        totalMatched += data.matched || 0;
+        hasMore = data.hasMore || false;
+        offset = data.nextOffset || 0;
+        setScanJobId(`${data.processed}/${data.total}`);
       }
+
+      setScanJobId(`Done — ${totalMatched} matched`);
+      setScanStatus("success");
     } catch {
       setScanStatus("error");
     }
-    setTimeout(() => setScanStatus("idle"), 5000);
+    setTimeout(() => setScanStatus("idle"), 8000);
   }
 
   return (
@@ -104,12 +112,7 @@ export function SettingsClient({ initialSettings, userId }: Props) {
             />
             <p className="text-xs text-muted mt-1.5">
               Get your token from{" "}
-              <a
-                href="https://app.put.io/oauth"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-accent hover:underline inline-flex items-center gap-0.5"
-              >
+              <a href="https://app.put.io/oauth" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline inline-flex items-center gap-0.5">
                 app.put.io/oauth <ExternalLink className="w-3 h-3" />
               </a>
             </p>
@@ -145,12 +148,7 @@ export function SettingsClient({ initialSettings, userId }: Props) {
             />
             <p className="text-xs text-muted mt-1.5">
               Free key from{" "}
-              <a
-                href="https://www.themoviedb.org/settings/api"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-accent hover:underline inline-flex items-center gap-0.5"
-              >
+              <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline inline-flex items-center gap-0.5">
                 themoviedb.org <ExternalLink className="w-3 h-3" />
               </a>
             </p>
@@ -192,9 +190,9 @@ export function SettingsClient({ initialSettings, userId }: Props) {
           >
             <RefreshCw className={cn("w-4 h-4", scanStatus === "loading" && "animate-spin")} />
             {scanStatus === "loading"
-              ? "Scanning..."
+              ? `Scanning... ${scanJobId || ""}`
               : scanStatus === "success"
-              ? `Scan started! Job: ${scanJobId?.slice(0, 8)}...`
+              ? `✓ ${scanJobId}`
               : scanStatus === "error"
               ? "Scan failed"
               : "Scan Library"}
@@ -211,9 +209,7 @@ export function SettingsClient({ initialSettings, userId }: Props) {
         >
           {saving ? "Saving..." : "Save Settings"}
         </button>
-        {message && (
-          <span className="text-sm text-success">{message}</span>
-        )}
+        {message && <span className="text-sm text-success">{message}</span>}
       </div>
 
       {/* Sign out */}
