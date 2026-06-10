@@ -1,7 +1,10 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
-import { randomUUID } from "node:crypto";
+
+function generateId() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -40,14 +43,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const existingUsers = await db.select().from(users).limit(1);
           if (existingUsers.length > 0) return null;
 
-          const id = randomUUID();
+          const id = generateId();
           const [newUser] = await db
             .insert(users)
             .values({ id, email, name: email.split("@")[0] })
             .returning();
 
           await db.insert(settings).values({
-            id: randomUUID(),
+            id: generateId(),
             userId: newUser.id,
           });
 
