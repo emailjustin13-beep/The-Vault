@@ -71,11 +71,9 @@ export function MediaCard({ item, progress, size = "md", className }: MediaCardP
           </div>
         )}
 
-        {/* Gradient overlay on hover */}
         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
           style={{ background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 60%)" }} />
 
-        {/* Play button on hover */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <div className="w-10 h-10 rounded-full flex items-center justify-center"
             style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(4px)", border: "1px solid rgba(255,255,255,0.3)" }}>
@@ -83,7 +81,6 @@ export function MediaCard({ item, progress, size = "md", className }: MediaCardP
           </div>
         </div>
 
-        {/* Rating badge */}
         {rating && rating > 0 && (
           <div className="absolute top-2 right-2 flex items-center gap-1 rounded px-1.5 py-0.5"
             style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
@@ -92,14 +89,12 @@ export function MediaCard({ item, progress, size = "md", className }: MediaCardP
           </div>
         )}
 
-        {/* Progress bar */}
         {progressPercent > 0 && !progress?.completed && (
           <div className="absolute bottom-0 inset-x-0 h-0.5" style={{ background: "rgba(255,255,255,0.15)" }}>
             <div className="h-full bg-white transition-all" style={{ width: `${progressPercent}%` }} />
           </div>
         )}
 
-        {/* Completed indicator */}
         {progress?.completed && (
           <div className="absolute bottom-2 right-2 w-5 h-5 rounded-full flex items-center justify-center"
             style={{ background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.4)" }}>
@@ -110,6 +105,14 @@ export function MediaCard({ item, progress, size = "md", className }: MediaCardP
         )}
       </div>
 
-      {/* Title */}
       <div className="mt-2 px-0.5">
-        <p className="text-sm font-medium text-
+        <p className="text-sm font-medium text-[#ccc] group-hover:text-white transition-colors line-clamp-1">
+          {displayTitle}
+        </p>
+        {releaseDate && (
+          <p className="text-xs mt-0.5" style={{ color: "#444" }}>{formatYear(releaseDate)}</p>
+        )}
+      </div>
+    </Link>
+  );
+}
