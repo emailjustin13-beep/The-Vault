@@ -154,3 +154,110 @@ export default function ReviewPage() {
             <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3 min-w-0">
                 <div className={`flex-shrink-0 p-1.5 rounded-lg ${item.type === "movie" ? "bg-blue-500/10" : "bg-purple-500/10"}`}>
+                  {item.type === "movie"
+                    ? <Film className="w-4 h-4 text-blue-400" />
+                    : <Tv2 className="w-4 h-4 text-purple-400" />
+                  }
+                </div>
+                <div className="min-w-0">
+                  <p className="text-white font-medium text-sm truncate">{item.title}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {item.year && <span className="text-xs text-muted">{item.year}</span>}
+                    {item.season && <span className="text-xs text-muted">S{item.season}E{item.episode}</span>}
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      item.status === "needs_review"
+                        ? "bg-yellow-500/10 text-yellow-400"
+                        : "bg-red-500/10 text-red-400"
+                    }`}>
+                      {item.status === "needs_review" ? `${item.confidence}% match` : "unmatched"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button onClick={() => dismissItem(item.id)} className="p-2 text-muted hover:text-red-400 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+                <button onClick={() => setExpanded((p) => ({ ...p, [item.id]: !p[item.id] }))} className="p-2 text-muted hover:text-white transition-colors">
+                  {expanded[item.id] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {expanded[item.id] && (
+              <div className="border-t border-white/5 p-4 space-y-4">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                    <input
+                      type="text"
+                      value={searchQuery[item.id] ?? item.title}
+                      onChange={(e) => setSearchQuery((p) => ({ ...p, [item.id]: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          searchTMDb(item.id, searchQuery[item.id] ?? item.title, item.type);
+                        }
+                      }}
+                      placeholder="Search TMDb..."
+                      className="w-full bg-card border border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm text-white placeholder-muted focus:outline-none focus:border-accent/50"
+                    />
+                  </div>
+                  <button
+                    onClick={() => searchTMDb(item.id, searchQuery[item.id] ?? item.title, item.type)}
+                    disabled={searching[item.id]}
+                    className="bg-accent hover:bg-accent-hover text-black font-semibold rounded-lg px-4 py-2 text-sm transition-colors disabled:opacity-50"
+                  >
+                    {searching[item.id] ? "..." : "Search"}
+                  </button>
+                </div>
+
+                {searchResults[item.id] && searchResults[item.id].length > 0 && (
+                  <div className="space-y-2">
+                    {searchResults[item.id].slice(0, 5).map((result) => (
+                      <div key={result.id} className="flex items-center gap-3 bg-card rounded-lg p-3">
+                        <div className="w-10 h-14 rounded bg-white/5 flex-shrink-0 overflow-hidden">
+                          {result.poster_path ? (
+                            <img
+                              src={`https://image.tmdb.org/t/p/w92${result.poster_path}`}
+                              alt={result.title || result.name || ""}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-muted text-xs">?</div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-sm font-medium truncate">{result.title || result.name}</p>
+                          <p className="text-muted text-xs mt-0.5">
+                            {result.release_date?.slice(0, 4) || result.first_air_date?.slice(0, 4) || "—"}
+                            {" · "}
+                            {result.vote_average?.toFixed(1)}
+                          </p>
+                          {result.overview && (
+                            <p className="text-muted text-xs mt-1 line-clamp-2">{result.overview}</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => approveMatch(item.id, result, item.type)}
+                          disabled={approving[item.id]}
+                          className="flex-shrink-0 flex items-center gap-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/20 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          {approving[item.id] ? "..." : "Match"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {searchResults[item.id] && searchResults[item.id].length === 0 && !searching[item.id] && (
+                  <p className="text-muted text-sm text-center py-4">No results found. Try a different search term.</p>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
