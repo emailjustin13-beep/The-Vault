@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { scanJobs, settings, mediaItems, mediaFiles } from "@/db/schema";
@@ -6,7 +6,6 @@ import { eq, and } from "drizzle-orm";
 import { createPutioService } from "@/services/putio";
 import { createTMDbService } from "@/services/tmdb";
 import { parseFilename, detectMediaType } from "@/services/parser";
-import { NextRequest } from "next/server";
 
 function generateId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -15,7 +14,7 @@ function generateId() {
 function cleanTitle(title: string): string {
   return title
     .replace(/\s*-\s*/g, " ")
-    .replace(/[()]/g, " ")
+    .replace(/[()[\]]/g, " ")
     .replace(/\b(19|20)\d{2}\b/g, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -48,13 +47,17 @@ export async function POST(req: NextRequest) {
 
     // Group TV episodes by show title within this batch
     const showMap = new Map<string, typeof batch>();
-    const movieFiles = [];
+    const movieFiles: typeof batch = [];
 
     for (const file of batch) {
-      const parsed = parseFilename(file.name);
+      let parsed = parseFilename(file.name);
       const mediaType = detectMediaType(file.name, parsed);
 
+      // Use folder name as show title if filename has no recognizable title
       if (mediaType === "tv" || mediaType === "anime") {
+        if (!parsed.title || parsed.title.match(/^s\d+e\d+/i) || parsed.title.trim().length < 2) {
+          parsed.title = cleanTitle(file.folderName || parsed.title);
+        }
         const key = cleanTitle(parsed.title).toLowerCase();
         if (!showMap.has(key)) showMap.set(key, []);
         showMap.get(key)!.push(file);
@@ -96,21 +99,30 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        const mediaItemId = generateId();
-        await db.insert(mediaItems).values({
-          id: mediaItemId,
-          putioFileId: String(file.id),
-          type: "movie",
-          title: parsed.title,
-          year: parsed.year,
-          season: null,
-          episode: null,
-          tmdbId,
-          tmdbData,
-          status: status as "pending" | "matched" | "unmatched" | "needs_review",
-          confidence,
-          lastScannedAt: new Date(),
-        });
+        // Check if media_item already exists for this file
+        const existingItem = await db.select().from(mediaItems).where(eq(mediaItems.putioFileId, String(file.id))).limit(1);
+        
+        let mediaItemId: string;
+        if (existingItem.length > 0) {
+          mediaItemId = existingItem[0].id;
+        } else {
+          mediaItemId = generateId();
+          await db.insert(mediaItems).values({
+            id: mediaItemId,
+            putioFileId: String(file.id),
+            type: "movie",
+            title: parseFilename(file.name).title,
+            year: parseFilename(file.name).year,
+            season: null,
+            episode: null,
+            tmdbId,
+            tmdbData,
+            status: status as "pending" | "matched" | "unmatched" | "needs_review",
+            confidence,
+            lastScannedAt: new Date(),
+          });
+        }
+
         await db.insert(mediaFiles).values({
           id: generateId(),
           mediaItemId,
@@ -121,19 +133,25 @@ export async function POST(req: NextRequest) {
           codec: parsed.codec,
           source: parsed.source,
           hasSubtitles: false,
-        });
+        }).onConflictDoNothing();
+
         matched++;
       } catch {
         errors++;
       }
     }
 
-    // Process TV shows
+    // Process TV shows — one media_item per show
     for (const [, episodes] of showMap) {
       try {
         const firstFile = episodes[0];
-        const parsed = parseFilename(firstFile.name);
+        let parsed = parseFilename(firstFile.name);
         const mediaType = detectMediaType(firstFile.name, parsed);
+
+        if (!parsed.title || parsed.title.match(/^s\d+e\d+/i) || parsed.title.trim().length < 2) {
+          parsed.title = cleanTitle(firstFile.folderName || parsed.title);
+        }
+
         const searchTitle = cleanTitle(parsed.title);
 
         const existing = await db.select().from(mediaItems)
@@ -151,9 +169,9 @@ export async function POST(req: NextRequest) {
           let confidence = null;
 
           if (tmdb) {
-            const results = await tmdb.searchTV(searchTitle, parsed.year ?? undefined);
+            const results = await tmdb.searchTV(searchTitle);
             if (results.length > 0) {
-              confidence = tmdb.calculateConfidence({ title: searchTitle, year: parsed.year }, results[0]);
+              confidence = tmdb.calculateConfidence({ title: searchTitle, year: null }, results[0]);
               if (confidence >= 60) {
                 tmdbId = results[0].id;
                 tmdbData = await tmdb.getTVDetails(results[0].id);
