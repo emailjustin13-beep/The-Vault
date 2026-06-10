@@ -45,7 +45,6 @@ export async function POST(req: NextRequest) {
     const batch = allVideoFiles.slice(offset, offset + BATCH_SIZE);
     const hasMore = offset + BATCH_SIZE < totalFiles;
 
-    // Group TV episodes by show title within this batch
     const showMap = new Map<string, typeof batch>();
     const movieFiles: typeof batch = [];
 
@@ -53,7 +52,6 @@ export async function POST(req: NextRequest) {
       let parsed = parseFilename(file.name);
       const mediaType = detectMediaType(file.name, parsed);
 
-      // Use folder name as show title if filename has no recognizable title
       if (mediaType === "tv" || mediaType === "anime") {
         if (!parsed.title || parsed.title.match(/^s\d+e\d+/i) || parsed.title.trim().length < 2) {
           parsed.title = cleanTitle(file.folderName || parsed.title);
@@ -99,9 +97,8 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Check if media_item already exists for this file
-        const existingItem = await db.select().from(mediaItems).where(eq(mediaItems.putioFileId, String(file.id))).limit(1);
-        
+        const existingItem = await db.select().from(mediaItems).where(eq(mediaItems.putioFileId, `movie_${String(file.id)}`)).limit(1);
+
         let mediaItemId: string;
         if (existingItem.length > 0) {
           mediaItemId = existingItem[0].id;
@@ -109,10 +106,10 @@ export async function POST(req: NextRequest) {
           mediaItemId = generateId();
           await db.insert(mediaItems).values({
             id: mediaItemId,
-            putioFileId: String(file.id),
+            putioFileId: `movie_${String(file.id)}`,
             type: "movie",
-            title: parseFilename(file.name).title,
-            year: parseFilename(file.name).year,
+            title: parsed.title,
+            year: parsed.year,
             season: null,
             episode: null,
             tmdbId,
@@ -141,7 +138,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Process TV shows — one media_item per show
+    // Process TV shows
     for (const [, episodes] of showMap) {
       try {
         const firstFile = episodes[0];
