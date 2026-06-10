@@ -1,9 +1,8 @@
 "use client";
-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Home, Film, Tv2, Sparkles, BookOpen, Search, Settings, Lock } from "lucide-react";
+import { Home, Film, Tv2, Sparkles, BookOpen, Search, Settings, Lock, AlertCircle } from "lucide-react";
 
 const navItems = [
   { href: "/home", label: "Home", icon: Home },
@@ -12,6 +11,7 @@ const navItems = [
   { href: "/anime", label: "Anime", icon: Sparkles },
   { href: "/collections", label: "Collections", icon: BookOpen },
   { href: "/search", label: "Search", icon: Search },
+  { href: "/review", label: "Review", icon: AlertCircle },
 ];
 
 export function Sidebar() {
