@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { scanJobs, settings, mediaItems, mediaFiles } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { createPutioService } from "@/services/putio";
 import { createTMDbService } from "@/services/tmdb";
 import { parseFilename, detectMediaType } from "@/services/parser";
@@ -15,6 +15,7 @@ function cleanTitle(title: string): string {
   return title
     .replace(/\s*-\s*/g, " ")
     .replace(/[()]/g, " ")
+    .replace(/\b(19|20)\d{2}\b/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -36,16 +37,34 @@ export async function POST() {
     const tmdb = userSettings.tmdbApiKey ? createTMDbService(userSettings.tmdbApiKey) : createTMDbService();
 
     const videoFiles = await putio.getAllVideoFiles();
+
+    // Group TV episodes by show title
+    const showMap = new Map<string, typeof videoFiles>();
+    const movieFiles = [];
+
+    for (const file of videoFiles) {
+      const parsed = parseFilename(file.name);
+      const mediaType = detectMediaType(file.name, parsed);
+
+      if (mediaType === "tv" || mediaType === "anime") {
+        const key = cleanTitle(parsed.title).toLowerCase();
+        if (!showMap.has(key)) showMap.set(key, []);
+        showMap.get(key)!.push(file);
+      } else {
+        movieFiles.push(file);
+      }
+    }
+
     let matched = 0;
     let errors = 0;
 
-    for (const file of videoFiles) {
+    // Process movies normally
+    for (const file of movieFiles) {
       try {
         const existing = await db.select().from(mediaFiles).where(eq(mediaFiles.putioFileId, String(file.id))).limit(1);
         if (existing.length > 0) continue;
 
         const parsed = parseFilename(file.name);
-        const mediaType = detectMediaType(file.name, parsed);
         const searchTitle = cleanTitle(parsed.title);
 
         let tmdbId = null;
@@ -54,15 +73,12 @@ export async function POST() {
         let confidence = null;
 
         if (tmdb) {
-          const results = mediaType === "movie"
-            ? await tmdb.searchMovie(searchTitle, parsed.year ?? undefined)
-            : await tmdb.searchTV(searchTitle, parsed.year ?? undefined);
-
+          const results = await tmdb.searchMovie(searchTitle, parsed.year ?? undefined);
           if (results.length > 0) {
             confidence = tmdb.calculateConfidence({ title: searchTitle, year: parsed.year }, results[0]);
-            if (confidence >= 70) {
+            if (confidence >= 60) {
               tmdbId = results[0].id;
-              tmdbData = mediaType === "movie" ? await tmdb.getMovieDetails(results[0].id) : await tmdb.getTVDetails(results[0].id);
+              tmdbData = await tmdb.getMovieDetails(results[0].id);
               status = "matched";
             } else {
               status = confidence >= 40 ? "needs_review" : "unmatched";
@@ -73,18 +89,136 @@ export async function POST() {
         }
 
         const mediaItemId = generateId();
-        await db.insert(mediaItems).values({ id: mediaItemId, putioFileId: String(file.id), type: mediaType, title: parsed.title, year: parsed.year, season: parsed.season, episode: parsed.episode, tmdbId, tmdbData, status: status as "pending" | "matched" | "unmatched" | "needs_review", confidence, lastScannedAt: new Date() });
-        await db.insert(mediaFiles).values({ id: generateId(), mediaItemId, putioFileId: String(file.id), filename: file.name, size: file.size, resolution: parsed.resolution, codec: parsed.codec, source: parsed.source, hasSubtitles: false });
+        await db.insert(mediaItems).values({
+          id: mediaItemId,
+          putioFileId: String(file.id),
+          type: "movie",
+          title: parsed.title,
+          year: parsed.year,
+          season: null,
+          episode: null,
+          tmdbId,
+          tmdbData,
+          status: status as "pending" | "matched" | "unmatched" | "needs_review",
+          confidence,
+          lastScannedAt: new Date(),
+        });
+        await db.insert(mediaFiles).values({
+          id: generateId(),
+          mediaItemId,
+          putioFileId: String(file.id),
+          filename: file.name,
+          size: file.size,
+          resolution: parsed.resolution,
+          codec: parsed.codec,
+          source: parsed.source,
+          hasSubtitles: false,
+        });
         matched++;
       } catch {
         errors++;
       }
     }
 
-    await db.update(scanJobs).set({ status: "completed", totalFiles: videoFiles.length, processedFiles: videoFiles.length, matchedFiles: matched, errorFiles: errors, completedAt: new Date() }).where(eq(scanJobs.id, jobId));
+    // Process TV shows — one media_item per show, episodes as media_files
+    for (const [, episodes] of showMap) {
+      try {
+        const firstFile = episodes[0];
+        const parsed = parseFilename(firstFile.name);
+        const mediaType = detectMediaType(firstFile.name, parsed);
+        const searchTitle = cleanTitle(parsed.title);
+
+        // Check if show already exists
+        const existing = await db.select().from(mediaItems)
+          .where(and(
+            eq(mediaItems.title, parsed.title),
+            eq(mediaItems.type, mediaType)
+          )).limit(1);
+
+        let mediaItemId: string;
+
+        if (existing.length > 0) {
+          mediaItemId = existing[0].id;
+        } else {
+          let tmdbId = null;
+          let tmdbData = null;
+          let status = "pending";
+          let confidence = null;
+
+          if (tmdb) {
+            const results = await tmdb.searchTV(searchTitle, parsed.year ?? undefined);
+            if (results.length > 0) {
+              confidence = tmdb.calculateConfidence({ title: searchTitle, year: parsed.year }, results[0]);
+              if (confidence >= 60) {
+                tmdbId = results[0].id;
+                tmdbData = await tmdb.getTVDetails(results[0].id);
+                status = "matched";
+              } else {
+                status = confidence >= 40 ? "needs_review" : "unmatched";
+              }
+            } else {
+              status = "unmatched";
+            }
+          }
+
+          mediaItemId = generateId();
+          await db.insert(mediaItems).values({
+            id: mediaItemId,
+            putioFileId: String(firstFile.id),
+            type: mediaType,
+            title: parsed.title,
+            year: parsed.year,
+            season: null,
+            episode: null,
+            tmdbId,
+            tmdbData,
+            status: status as "pending" | "matched" | "unmatched" | "needs_review",
+            confidence,
+            lastScannedAt: new Date(),
+          });
+        }
+
+        // Add all episodes as media_files under this show
+        for (const file of episodes) {
+          const epExisting = await db.select().from(mediaFiles).where(eq(mediaFiles.putioFileId, String(file.id))).limit(1);
+          if (epExisting.length > 0) continue;
+
+          const epParsed = parseFilename(file.name);
+          await db.insert(mediaFiles).values({
+            id: generateId(),
+            mediaItemId,
+            putioFileId: String(file.id),
+            filename: file.name,
+            size: file.size,
+            resolution: epParsed.resolution,
+            codec: epParsed.codec,
+            source: epParsed.source,
+            hasSubtitles: false,
+          });
+        }
+
+        matched++;
+      } catch {
+        errors++;
+      }
+    }
+
+    await db.update(scanJobs).set({
+      status: "completed",
+      totalFiles: videoFiles.length,
+      processedFiles: videoFiles.length,
+      matchedFiles: matched,
+      errorFiles: errors,
+      completedAt: new Date(),
+    }).where(eq(scanJobs.id, jobId));
+
     return NextResponse.json({ jobId, matched, total: videoFiles.length });
   } catch (error) {
-    await db.update(scanJobs).set({ status: "failed", error: error instanceof Error ? error.message : "Unknown error", completedAt: new Date() }).where(eq(scanJobs.id, jobId));
+    await db.update(scanJobs).set({
+      status: "failed",
+      error: error instanceof Error ? error.message : "Unknown error",
+      completedAt: new Date(),
+    }).where(eq(scanJobs.id, jobId));
     return NextResponse.json({ error: "Scan failed" }, { status: 500 });
   }
 }
