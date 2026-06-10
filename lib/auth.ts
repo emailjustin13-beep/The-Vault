@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
-import { randomUUID } from "crypto";
+const { randomUUID } = require("crypto");
 
 const credentialsSchema = z.object({
   email: z.string().email(),
