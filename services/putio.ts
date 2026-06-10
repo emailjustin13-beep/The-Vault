@@ -96,4 +96,6 @@ export class PutioService {
   }
 }
 
-export function createPutioService(accessToken:
+export function createPutioService(accessToken: string): PutioService {
+  return new PutioService(accessToken);
+}
