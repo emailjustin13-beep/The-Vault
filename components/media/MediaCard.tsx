@@ -14,9 +14,9 @@ interface MediaCardProps {
 }
 
 const POSTER_SIZES = {
-  sm: { width: 120, height: 180, class: "w-28 md:w-32" },
-  md: { width: 160, height: 240, class: "w-36 md:w-44" },
-  lg: { width: 200, height: 300, class: "w-44 md:w-52" },
+  sm: { width: 100, height: 150 },
+  md: { width: 130, height: 195 },
+  lg: { width: 160, height: 240 },
 };
 
 export function MediaCard({ item, progress, size = "md", className }: MediaCardProps) {
@@ -31,14 +31,21 @@ export function MediaCard({ item, progress, size = "md", className }: MediaCardP
   return (
     <Link
       href={`/media/${item.id}`}
-      className={cn("group flex-shrink-0 block", dims.class, className)}
+      className={cn("group block flex-shrink-0", className)}
+      style={{ width: dims.width }}
     >
       <div
-        className="relative rounded-xl overflow-hidden bg-[#1a1a1a] aspect-[2/3]"
         style={{
+          width: dims.width,
+          height: dims.height,
+          borderRadius: 10,
+          overflow: "hidden",
+          position: "relative",
+          background: "#1a1a1a",
           border: "1px solid rgba(255,255,255,0.18)",
           boxShadow: "0 0 12px rgba(255,255,255,0.06), 0 0 24px rgba(255,255,255,0.03)",
           transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease",
+          flexShrink: 0,
         }}
         onMouseEnter={(e) => {
           const el = e.currentTarget;
@@ -65,52 +72,54 @@ export function MediaCard({ item, progress, size = "md", className }: MediaCardP
             loading="lazy"
           />
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-3 text-center">
-            <div className="text-3xl mb-2">🎬</div>
-            <span className="text-xs text-[#555] leading-tight line-clamp-3">{displayTitle}</span>
+          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 12, textAlign: "center" }}>
+            <div style={{ fontSize: 28, marginBottom: 6 }}>🎬</div>
+            <span style={{ fontSize: 11, color: "#555", lineHeight: 1.3 }}>{displayTitle}</span>
           </div>
         )}
 
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-          style={{ background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 60%)" }} />
+        <div
+          style={{ position: "absolute", inset: 0, opacity: 0, transition: "opacity 0.2s", background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 60%)" }}
+          className="group-hover:opacity-100"
+        />
 
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center"
-            style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(4px)", border: "1px solid rgba(255,255,255,0.3)" }}>
-            <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+        <div
+          style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0, transition: "opacity 0.2s" }}
+          className="group-hover:opacity-100"
+        >
+          <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Play style={{ width: 14, height: 14, color: "#fff", fill: "#fff", marginLeft: 2 }} />
           </div>
         </div>
 
         {rating && rating > 0 && (
-          <div className="absolute top-2 right-2 flex items-center gap-1 rounded px-1.5 py-0.5"
-            style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
-            <Star className="w-2.5 h-2.5 fill-white text-white" />
-            <span className="text-[10px] font-medium text-white">{rating.toFixed(1)}</span>
+          <div style={{ position: "absolute", top: 6, right: 6, display: "flex", alignItems: "center", gap: 3, background: "rgba(0,0,0,0.7)", borderRadius: 4, padding: "2px 5px" }}>
+            <Star style={{ width: 9, height: 9, fill: "#fff", color: "#fff" }} />
+            <span style={{ fontSize: 9, fontWeight: 600, color: "#fff" }}>{rating.toFixed(1)}</span>
           </div>
         )}
 
         {progressPercent > 0 && !progress?.completed && (
-          <div className="absolute bottom-0 inset-x-0 h-0.5" style={{ background: "rgba(255,255,255,0.15)" }}>
-            <div className="h-full bg-white transition-all" style={{ width: `${progressPercent}%` }} />
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 2, background: "rgba(255,255,255,0.15)" }}>
+            <div style={{ height: "100%", width: `${progressPercent}%`, background: "#fff" }} />
           </div>
         )}
 
         {progress?.completed && (
-          <div className="absolute bottom-2 right-2 w-5 h-5 rounded-full flex items-center justify-center"
-            style={{ background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.4)" }}>
-            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div style={{ position: "absolute", bottom: 6, right: 6, width: 18, height: 18, borderRadius: "50%", background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg style={{ width: 10, height: 10, color: "#fff" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
             </svg>
           </div>
         )}
       </div>
 
-      <div className="mt-2 px-0.5">
-        <p className="text-sm font-medium text-[#ccc] group-hover:text-white transition-colors line-clamp-1">
+      <div style={{ marginTop: 8, paddingLeft: 2 }}>
+        <p style={{ fontSize: 12, fontWeight: 500, color: "#ccc", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: dims.width }}>
           {displayTitle}
         </p>
         {releaseDate && (
-          <p className="text-xs mt-0.5" style={{ color: "#444" }}>{formatYear(releaseDate)}</p>
+          <p style={{ fontSize: 11, color: "#444", marginTop: 2 }}>{formatYear(releaseDate)}</p>
         )}
       </div>
     </Link>
