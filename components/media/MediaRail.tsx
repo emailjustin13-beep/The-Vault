@@ -15,6 +15,7 @@ interface MediaRailProps {
 
 export function MediaRail({ title, items, progress, href, size = "md" }: MediaRailProps) {
   if (!items || items.length === 0) return null;
+
   return (
     <section className="mb-8">
       <div className="flex items-center justify-between mb-3 px-4 md:px-6">
@@ -25,7 +26,16 @@ export function MediaRail({ title, items, progress, href, size = "md" }: MediaRa
           </Link>
         )}
       </div>
-      <div className="flex gap-3 overflow-x-auto hide-scrollbar px-4 md:px-6 pb-2">
+      <div
+        className="flex gap-3 px-4 md:px-6 pb-2"
+        style={{
+          overflowX: "auto",
+          WebkitOverflowScrolling: "touch",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          touchAction: "pan-x",
+        }}
+      >
         {items.map((item) => (
           <MediaCard key={item.id} item={item} progress={progress?.[item.id]} size={size} />
         ))}
