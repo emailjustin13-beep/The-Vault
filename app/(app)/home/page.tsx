@@ -6,7 +6,6 @@ import { MediaRail } from "@/components/media/MediaRail";
 import { MediaItem, WatchProgress } from "@/types";
 
 async function getHomeData(userId: string) {
-  // Continue watching
   const recentProgress = await db
     .select()
     .from(watchProgress)
@@ -16,13 +15,9 @@ async function getHomeData(userId: string) {
 
   const continueWatchingIds = recentProgress.map((p) => p.mediaItemId);
   const continueWatchingItems = continueWatchingIds.length > 0
-    ? await db
-        .select()
-        .from(mediaItems)
-        .where(inArray(mediaItems.id, continueWatchingIds))
+    ? await db.select().from(mediaItems).where(inArray(mediaItems.id, continueWatchingIds))
     : [];
 
-  // Recently added
   const recentlyAdded = await db
     .select()
     .from(mediaItems)
@@ -30,7 +25,6 @@ async function getHomeData(userId: string) {
     .orderBy(desc(mediaItems.addedAt))
     .limit(20);
 
-  // Movies
   const movies = await db
     .select()
     .from(mediaItems)
@@ -38,7 +32,6 @@ async function getHomeData(userId: string) {
     .orderBy(desc(mediaItems.addedAt))
     .limit(20);
 
-  // TV Shows
   const tvShows = await db
     .select()
     .from(mediaItems)
@@ -46,7 +39,6 @@ async function getHomeData(userId: string) {
     .orderBy(desc(mediaItems.addedAt))
     .limit(20);
 
-  // Anime
   const anime = await db
     .select()
     .from(mediaItems)
@@ -82,11 +74,10 @@ export default async function HomePage() {
 
   return (
     <div className="pt-6">
-      {/* Header */}
       <div className="px-4 md:px-6 mb-8">
         <h1 className="font-display font-bold text-2xl md:text-3xl text-white">
           Good {getGreeting()},{" "}
-          <span className="text-accent">{session?.user?.name?.split(" ")[0] || "there"}</span>
+          <span style={{ color: "#888" }}>{session?.user?.name?.split(" ")[0] || "there"}</span>
         </h1>
         <p className="text-muted text-sm mt-1">What are you watching today?</p>
       </div>
@@ -99,13 +90,11 @@ export default async function HomePage() {
             title="Continue Watching"
             items={data.continueWatching}
             progress={data.progressMap}
-            href="/home"
           />
           <MediaRail
             title="Recently Added"
             items={data.recentlyAdded}
             progress={data.progressMap}
-            href="/home"
           />
           <MediaRail title="Movies" items={data.movies} href="/movies" />
           <MediaRail title="TV Shows" items={data.tvShows} href="/tv" />
@@ -131,9 +120,9 @@ function EmptyLibrary() {
       <p className="text-muted text-sm max-w-xs mb-6">
         Connect Put.io and scan your library to start streaming your media collection.
       </p>
-      <a
+      
         href="/settings"
-        className="bg-accent hover:bg-accent-hover text-black font-semibold rounded-lg px-5 py-2.5 text-sm transition-colors"
+        className="bg-white text-black font-semibold rounded-lg px-5 py-2.5 text-sm transition-colors"
       >
         Go to Settings
       </a>
