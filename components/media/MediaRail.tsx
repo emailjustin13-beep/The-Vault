@@ -28,9 +28,15 @@ export function MediaRail({ title, items, progress, href, size = "md" }: MediaRa
           </Link>
         )}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, paddingLeft: 16, paddingRight: 16 }}>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+        gap: 8,
+        paddingLeft: 16,
+        paddingRight: 16,
+      }}>
         {visible.map((item) => (
-          <MediaCard key={item.id} item={item} progress={progress?.[item.id]} size={size} />
+          <MediaCard key={item.id} item={item} progress={progress?.[item.id]} size="sm" />
         ))}
       </div>
     </section>
