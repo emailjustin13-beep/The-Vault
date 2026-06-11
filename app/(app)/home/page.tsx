@@ -115,7 +115,7 @@ function getGreeting(): string {
 function EmptyLibrary() {
   return (
     <div className="flex flex-col items-center justify-center px-4 py-24 text-center">
-      <div className="text-6xl mb-4">📦</div>
+      <p className="text-4xl mb-4">...</p>
       <h2 className="font-display font-bold text-xl text-white mb-2">Your vault is empty</h2>
       <p className="text-muted text-sm max-w-xs mb-6">
         Connect Put.io and scan your library to start streaming your media collection.
