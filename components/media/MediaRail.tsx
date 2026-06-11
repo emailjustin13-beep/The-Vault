@@ -16,6 +16,8 @@ interface MediaRailProps {
 export function MediaRail({ title, items, progress, href, size = "md" }: MediaRailProps) {
   if (!items || items.length === 0) return null;
 
+  const visible = items.slice(0, 4);
+
   return (
     <section style={{ marginBottom: 32 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, paddingLeft: 16, paddingRight: 16 }}>
@@ -26,22 +28,8 @@ export function MediaRail({ title, items, progress, href, size = "md" }: MediaRa
           </Link>
         )}
       </div>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          flexWrap: "nowrap",
-          gap: 10,
-          overflowX: "scroll",
-          overflowY: "visible",
-          WebkitOverflowScrolling: "touch",
-          scrollbarWidth: "none",
-          paddingLeft: 16,
-          paddingRight: 16,
-          paddingBottom: 8,
-        }}
-      >
-        {items.map((item) => (
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, paddingLeft: 16, paddingRight: 16 }}>
+        {visible.map((item) => (
           <MediaCard key={item.id} item={item} progress={progress?.[item.id]} size={size} />
         ))}
       </div>
