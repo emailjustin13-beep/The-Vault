@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { scanJobs, settings, mediaItems, mediaFiles } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, notInArray } from "drizzle-orm";
 import { createPutioService } from "@/services/putio";
 import { createTMDbService } from "@/services/tmdb";
 import { parseFilename, detectMediaType } from "@/services/parser";
@@ -44,6 +44,25 @@ export async function POST(req: NextRequest) {
     const totalFiles = allVideoFiles.length;
     const batch = allVideoFiles.slice(offset, offset + BATCH_SIZE);
     const hasMore = offset + BATCH_SIZE < totalFiles;
+
+    // On first batch, clean up deleted files
+    if (offset === 0) {
+      const allPutioIds = allVideoFiles.map((f) => String(f.id));
+
+      // Find media_files whose putio_file_id no longer exists on Put.io
+      const allDbFiles = await db.select({ id: mediaFiles.id, mediaItemId: mediaFiles.mediaItemId, putioFileId: mediaFiles.putioFileId }).from(mediaFiles);
+      const deletedFiles = allDbFiles.filter((f) => !allPutioIds.includes(f.putioFileId) && !f.putioFileId.startsWith("fix_"));
+
+      for (const file of deletedFiles) {
+        await db.delete(mediaFiles).where(eq(mediaFiles.id, file.id));
+
+        // Check if this was the last file for the media item
+        const remaining = await db.select().from(mediaFiles).where(eq(mediaFiles.mediaItemId, file.mediaItemId)).limit(1);
+        if (remaining.length === 0) {
+          await db.delete(mediaItems).where(eq(mediaItems.id, file.mediaItemId));
+        }
+      }
+    }
 
     const showMap = new Map<string, typeof batch>();
     const movieFiles: typeof batch = [];
