@@ -14,9 +14,9 @@ interface MediaCardProps {
 }
 
 const POSTER_SIZES = {
-  sm: { width: 100, height: 150 },
-  md: { width: 130, height: 195 },
-  lg: { width: 160, height: 240 },
+  sm: { width: 140, height: 210 },
+  md: { width: 170, height: 255 },
+  lg: { width: 200, height: 300 },
 };
 
 export function MediaCard({ item, progress, size = "md", className }: MediaCardProps) {
