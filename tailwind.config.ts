@@ -10,16 +10,16 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#0F0F0F",
-        surface: "#181818",
-        card: "#222222",
-        "card-hover": "#2A2A2A",
+        background: "#080808",
+        surface: "#111111",
+        card: "#1A1A1A",
+        "card-hover": "#222222",
         accent: {
-          DEFAULT: "#E5A00D",
-          hover: "#F5B420",
-          muted: "#E5A00D33",
+          DEFAULT: "#FFFFFF",
+          hover: "#E0E0E0",
+          muted: "#FFFFFF22",
         },
-        muted: "#B3B3B3",
+        muted: "#888888",
         success: "#22C55E",
         error: "#EF4444",
       },
