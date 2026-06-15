@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, SkipBack, SkipForward, Settings, ChevronLeft } from "lucide-react";
 import { cn, formatDuration } from "@/lib/utils";
 
@@ -15,6 +15,7 @@ interface VideoPlayerProps {
 }
 
 export function VideoPlayer({ mediaItemId, streamUrl, title, startPosition = 0, duration: initialDuration = 0 }: VideoPlayerProps) {
+  const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -154,9 +155,12 @@ export function VideoPlayer({ mediaItemId, streamUrl, title, startPosition = 0, 
       <div className={cn("absolute inset-0 flex flex-col justify-between transition-opacity duration-300 pointer-events-none", showControls ? "opacity-100" : "opacity-0")} onClick={(e) => e.stopPropagation()}>
         <div className="player-controls p-4 pointer-events-auto">
           <div className="flex items-center gap-3">
-            <Link href={`/media/${mediaItemId}`} className="text-white/80 hover:text-white transition-colors">
+            <button
+              onClick={(e) => { e.stopPropagation(); router.back(); }}
+              className="text-white/80 hover:text-white transition-colors"
+            >
               <ChevronLeft className="w-6 h-6" />
-            </Link>
+            </button>
             <span className="text-white font-medium text-sm truncate">{title}</span>
           </div>
         </div>
