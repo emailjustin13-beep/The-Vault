@@ -5,9 +5,10 @@ import { eq, and } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Play, Clock, Star, Calendar, Film, ChevronLeft, Tv2 } from "lucide-react";
+import { Play, Clock, Star, Calendar, Film, Tv2 } from "lucide-react";
 import { tmdbImageUrl, formatRuntime, formatYear, getProgressPercent } from "@/lib/utils";
 import { MediaItem, TMDbMediaData } from "@/types";
+import BackButton from "@/components/ui/BackButton";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -75,9 +76,7 @@ export default async function MediaDetailPage({ params }: Props) {
           <div className="absolute inset-0 bg-surface" />
         )}
         <div className="absolute top-4 left-4">
-          <Link href="javascript:history.back()" className="flex items-center gap-1.5 text-sm text-white/80 hover:text-white transition-colors bg-black/40 backdrop-blur-sm rounded-lg px-3 py-2">
-            <ChevronLeft className="w-4 h-4" /> Back
-          </Link>
+          <BackButton />
         </div>
       </div>
 
@@ -148,7 +147,7 @@ export default async function MediaDetailPage({ params }: Props) {
           </div>
         </div>
 
-        {/* Overview on mobile (below poster row) */}
+        {/* Overview on mobile */}
         {overview && (
           <p className="md:hidden text-muted text-sm leading-relaxed mt-4">{overview}</p>
         )}
