@@ -255,7 +255,7 @@ export default async function MediaDetailPage({ params }: Props) {
                     >
                       {backdropPath ? (
                         <Image
-                          src={tmdbImageUrl(backdropPath, "w300")}
+                          src={tmdbImageUrl(backdropPath, "w342")}
                           alt={`Episode ${episode}`}
                           fill
                           className="object-cover"
