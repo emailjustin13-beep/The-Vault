@@ -5,7 +5,7 @@ import { eq, and } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Play, Clock, Star, Calendar, Film, Tv2, Globe } from "lucide-react";
+import { Play, Star, Film, Tv2 } from "lucide-react";
 import { tmdbImageUrl, formatRuntime, formatYear, getProgressPercent } from "@/lib/utils";
 import { TMDbMediaData } from "@/types";
 import BackButton from "@/components/ui/BackButton";
@@ -38,7 +38,6 @@ export default async function MediaDetailPage({ params }: Props) {
   const genres = tmdb?.genres || [];
   const isTV = item.type === "tv" || item.type === "anime";
   const originCountry = (tmdb as any)?.originCountry?.[0] || null;
-  const contentRating = (tmdb as any)?.contentRatings?.results?.[0]?.rating || null;
 
   const episodesBySeason: Record<number, { file: typeof files[0]; season: number; episode: number }[]> = {};
 
@@ -64,6 +63,9 @@ export default async function MediaDetailPage({ params }: Props) {
   const primaryFile = files[0];
   const progressPercent = progress ? getProgressPercent(progress.position, progress.duration) : 0;
   const hasProgress = progressPercent > 0 && !progress?.completed;
+  const firstEpisodeFileId = seasons.length > 0 && episodesBySeason[seasons[0]]?.length > 0
+    ? episodesBySeason[seasons[0]][0].file.putioFileId
+    : null;
 
   return (
     <div className="min-h-screen bg-black">
@@ -92,16 +94,13 @@ export default async function MediaDetailPage({ params }: Props) {
           </div>
         )}
 
-        {/* gradient overlays */}
         <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #000 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.15) 100%)" }} />
         <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(0,0,0,0.6) 0%, transparent 60%)" }} />
 
-        {/* back button */}
         <div className="absolute top-4 left-4 z-10">
           <BackButton />
         </div>
 
-        {/* title pinned to bottom-left of hero */}
         <div className="absolute bottom-0 left-0 right-0 px-5 pb-5 z-10">
           <h1 style={{ fontSize: "clamp(1.5rem, 4vw, 3rem)", fontWeight: 800, color: "#fff", lineHeight: 1.1, textShadow: "0 2px 16px rgba(0,0,0,0.8)", marginBottom: 6 }}>
             {displayTitle}
@@ -123,15 +122,9 @@ export default async function MediaDetailPage({ params }: Props) {
       {/* ── BODY ── */}
       <div style={{ padding: "20px 20px 60px" }}>
 
-        {/* metadata pills row */}
-        {(contentRating || genres.length > 0 || originCountry || rating) && (
+        {/* metadata pills */}
+        {(genres.length > 0 || originCountry || (rating && rating > 0)) && (
           <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 20, flexWrap: "wrap" }}>
-            {contentRating && (
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 2 }}>Rating</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{contentRating}</div>
-              </div>
-            )}
             {genres[0] && (
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 2 }}>Genre</div>
@@ -156,7 +149,7 @@ export default async function MediaDetailPage({ params }: Props) {
           </div>
         )}
 
-        {/* Play / Resume button */}
+        {/* Movie play button */}
         {!isTV && primaryFile && (
           <Link
             href={`/watch/${item.id}`}
@@ -182,7 +175,7 @@ export default async function MediaDetailPage({ params }: Props) {
           </Link>
         )}
 
-        {/* progress bar under button for movies */}
+        {/* progress bar for movies */}
         {!isTV && hasProgress && (
           <div style={{ width: "100%", maxWidth: 480, height: 3, background: "rgba(255,255,255,0.15)", borderRadius: 2, marginBottom: 20 }}>
             <div style={{ height: "100%", width: `${progressPercent}%`, background: "#fff", borderRadius: 2 }} />
@@ -199,8 +192,6 @@ export default async function MediaDetailPage({ params }: Props) {
         {/* ── EPISODES ── */}
         {isTV && seasons.length > 0 && seasons.map((season) => (
           <div key={season} style={{ marginBottom: 32 }}>
-
-            {/* season header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <h2 style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: 0 }}>
                 {season === 0 ? "Specials" : `Season ${season}`}
@@ -210,7 +201,6 @@ export default async function MediaDetailPage({ params }: Props) {
               </span>
             </div>
 
-            {/* horizontal episode scroll */}
             <div
               style={{
                 display: "flex",
@@ -241,27 +231,25 @@ export default async function MediaDetailPage({ params }: Props) {
                     onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)")}
                     onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)")}
                   >
-                    {/* landscape thumbnail area */}
                     <div
                       style={{
                         width: 200,
                         height: 112,
                         background: "#111",
+                        position: "relative",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        position: "relative",
                       }}
                     >
-                      {backdropPath ? (
+                      {backdropPath && (
                         <Image
                           src={tmdbImageUrl(backdropPath, "w342")}
                           alt={`Episode ${episode}`}
                           fill
                           className="object-cover"
                         />
-                      ) : null}
-                      {/* dark overlay + play icon */}
+                      )}
                       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <Play style={{ width: 12, height: 12, fill: "#fff", color: "#fff", marginLeft: 2 }} />
@@ -269,7 +257,6 @@ export default async function MediaDetailPage({ params }: Props) {
                       </div>
                     </div>
 
-                    {/* episode info */}
                     <div style={{ padding: "8px 10px 10px" }}>
                       <p style={{ fontSize: 12, fontWeight: 600, color: "#fff", margin: 0 }}>
                         {episode}. Episode {episode}
@@ -286,9 +273,9 @@ export default async function MediaDetailPage({ params }: Props) {
         ))}
 
         {/* TV play button (first episode) */}
-        {isTV && primaryFile && seasons.length > 0 && (
+        {isTV && firstEpisodeFileId && (
           <Link
-            href={`/watch/${item.id}?fileId=${episodesBySeason[seasons[0]][0].file.putioFileId}`}
+            href={`/watch/${item.id}?fileId=${firstEpisodeFileId}`}
             style={{
               display: "flex",
               alignItems: "center",
